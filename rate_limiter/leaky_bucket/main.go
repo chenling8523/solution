@@ -23,11 +23,7 @@ func (l *Limiter) Allow() bool {
 	now := time.Now().UnixMilli()
 
 	tmFlow := now - l.LastLeakTm
-
-	fmt.Println("tmFlow:", tmFlow)
-
 	leak := tmFlow * l.LeakyRate / int64(1000)
-	fmt.Println("leak:", leak)
 
 	if leak > 0 {
 		l.RemainWater -= int(leak)
