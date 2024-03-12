@@ -11,9 +11,8 @@ var r = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 type Limiter struct {
 	WindowDuration time.Duration
-	CurrentReq     int
 	MaxReq         int
-	LastReSetTm    int64
+	ReqRecords     []int64
 	Lock           *sync.Mutex
 }
 
@@ -22,24 +21,30 @@ func (l *Limiter) Allow() bool {
 	defer l.Lock.Unlock()
 
 	now := time.Now().UnixMilli()
-	if now-l.LastReSetTm > int64(l.WindowDuration/time.Millisecond) {
-		l.CurrentReq = 0
-		l.LastReSetTm = now
+
+	for {
+		if len(l.ReqRecords) == 0 {
+			break
+		}
+		if (now - l.ReqRecords[0]) <= int64(l.WindowDuration/time.Millisecond) {
+			break
+		}
+		l.ReqRecords = l.ReqRecords[1:]
 	}
-	if l.CurrentReq < l.MaxReq {
-		l.CurrentReq++
+
+	if len(l.ReqRecords) < l.MaxReq {
+		l.ReqRecords = append(l.ReqRecords, now)
 		return true
 	}
 	return false
-
 }
 
 func NewLimiter(window time.Duration, maxReq int) *Limiter {
 	return &Limiter{
 		WindowDuration: window,
 		MaxReq:         maxReq,
+		ReqRecords:     make([]int64, 0, maxReq),
 		Lock:           &sync.Mutex{},
-		LastReSetTm:    time.Now().UnixMilli(),
 	}
 }
 
